@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Zombiden Kaçış! - Ultimate Custom Zombies Edition</title>
+    <style>
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            user-select: none; -webkit-user-select: none;
+        }
+        body, html {
+            width: 100%; height: 100%; overflow: hidden;
+            background-color: #030712; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+        }
+        #game-container {
+            position: relative; width: 100%; max-width: 480px; height: 100%; max-height: 850px;
+            background: linear-gradient(180deg, #0f172a 0%, #030712 100%);
+            box-shadow: 0 0 120px rgba(239, 68, 68, 0.5); overflow: hidden; display: flex; flex-direction: column;
+        }
+        #single-canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; touch-action: none; }
+        .half-screen { width: 100%; flex: 1; position: relative; overflow: hidden; display: none; touch-action: none; }
+        #half-1 { border-bottom: 2px solid rgba(239, 68, 68, 0.6); background: linear-gradient(180deg, #0f172a 0%, #030712 100%); }
+        #half-2 { background: linear-gradient(180deg, #2e1065 0%, #030712 100%); }
+
+        canvas { display: block; width: 100%; height: 100%; }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 16px; z-index: 5;
+        }
+        .header-panel {
+            display: flex; justify-content: space-between; align-items: center; color: #fff;
+            background: rgba(15, 23, 42, 0.85); padding: 8px 14px; border-radius: 14px;
+            border: 1px solid rgba(239, 68, 68, 0.4); backdrop-filter: blur(12px); pointer-events: auto;
+        }
+        .stat-box { font-size: 11px; font-weight: 800; color: #f87171; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #030712 100%);
+            display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+            z-index: 20; pointer-events: auto; padding: 25px 20px 40px 20px; overflow-y: auto;
+            -webkit-overflow-scrolling: touch; touch-action: pan-y;
+        }
+        
+        #splash-screen {
+            background: linear-gradient(135deg, #090d16 0%, #1a0614 50%, #030712 100%);
+            z-index: 50; display: flex; justify-content: center; align-items: center;
+        }
+        .splash-logo {
+            font-size: 30px; font-weight: 900; color: #ef4444; letter-spacing: 2px; text-align: center;
+            text-shadow: 0 0 35px rgba(239, 68, 68, 0.9), 0 0 12px rgba(0,0,0,0.9); margin-bottom: 4px;
+            animation: splashPulse 1.8s infinite alternate;
+        }
+        @keyframes splashPulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.06); filter: brightness(1.2); }
+        }
+        .splash-tagline { color: #38bdf8; font-size: 10px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 25px; font-weight: bold; }
+
+        .logo-title { 
+            color: #ef4444; font-size: 26px; font-weight: 900; letter-spacing: 3px; text-align: center; 
+            text-shadow: 0 0 25px rgba(239, 68, 68, 0.85); margin-bottom: 2px;
+        }
+        .logo-subtitle { color: #38bdf8; font-size: 9px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; font-weight: bold; }
+        
+        .lobby-card {
+            background: rgba(17, 24, 39, 0.85); border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 14px; padding: 10px; width: 100%; max-width: 290px; margin-bottom: 10px; text-align: center;
+            backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); flex-shrink: 0;
+        }
+        .xp-bar-container { width: 100%; height: 7px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+        .xp-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #ef4444, #f87171); transition: width 0.3s ease; }
+
+        .btn {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            color: white; border: none; padding: 12px 18px; font-size: 13px; font-weight: bold;
+            border-radius: 12px; cursor: pointer; box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+            transition: transform 0.1s ease, filter 0.2s ease; margin-bottom: 6px; width: 100%; max-width: 280px; text-align: center; flex-shrink: 0;
+            z-index: 60; pointer-events: auto;
+        }
+        .btn:hover { filter: brightness(1.1); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: none; }
+        .btn:active { transform: scale(0.96); }
+
+        .shop-container {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%; max-width: 300px;
+            margin-bottom: 12px; padding: 6px; flex-shrink: 0;
+        }
+        .shop-card { background: rgba(17, 24, 39, 0.9); border: 2px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 10px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .shop-card.active { border-color: #ef4444; background: rgba(239, 68, 68, 0.15); box-shadow: 0 0 15px rgba(239,68,68,0.3); }
+
+        .split-inventory-container {
+            display: flex; width: 100%; max-width: 310px; gap: 8px; margin-bottom: 12px; flex-shrink: 0;
+        }
+        .inv-column {
+            flex: 1; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 14px; padding: 8px; backdrop-filter: blur(10px); display: flex; flex-direction: column; align-items: center;
+        }
+        .inv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 6px; width: 100%; }
+        .inv-item {
+            background: rgba(30, 41, 59, 0.8); border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px; padding: 8px; text-align: center; cursor: pointer; transition: all 0.2s;
+        }
+        .inv-item.equipped { border-color: #ef4444; background: rgba(239, 68, 68, 0.25); box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+
+        #versus-hud {
+            position: absolute; top: 12px; left: 0; width: 100%;
+            display: none; justify-content: space-around; z-index: 10; pointer-events: none;
+            font-weight: 900; font-size: 12px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        #hud-p1 { color: #38bdf8; } #hud-p2 { color: #c084fc; }
+
+        .versus-overlay {
+            position: absolute; left: 0; width: 100%; height: 50%;
+            display: none; justify-content: center; align-items: center; z-index: 30;
+            background: rgba(3, 7, 18, 0.85); flex-direction: column; pointer-events: auto;
+        }
+        #overlay-p1 { top: 0; transform: rotate(180deg); }
+        #overlay-p2 { top: 50%; }
+
+        .versus-msg { font-size: 20px; font-weight: 900; text-shadow: 0 2px 10px rgba(0,0,0,0.8); margin-bottom: 4px; }
+        .versus-btn-group { display: flex; gap: 6px; }
+        .v-btn { padding: 5px 12px; font-size: 10px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; color: white; }
+
+        #shop-screen, #inventory-screen, #map-screen, #game-over-screen, #pause-screen, #achievements-screen, #menu-screen { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="single-canvas-container"><canvas id="singleCanvas"></canvas></div>
+
+        <div id="half-1" class="half-screen"><canvas id="canvas1"></canvas></div>
+        <div id="half-2" class="half-screen"><canvas id="canvas2"></canvas></div>
+
+        <div id="overlay-p1" class="versus-overlay">
+            <div id="msg-p1" class="versus-msg" style="color: #f43f5e;">KAYBETTİN</div>
+            <div class="versus-btn-group">
+                <button class="v-btn" style="background:#ef4444;" onclick="restartVersus()">BAŞTAN BAŞLA</button>
+                <button class="v-btn" style="background:#475569;" onclick="goToMenu()">LOBİYE DÖN</button>
+            </div>
+        </div>
+        <div id="overlay-p2" class="versus-overlay">
+            <div id="msg-p2" class="versus-msg" style="color: #4ade80;">KAZANDIN</div>
+            <div class="versus-btn-group">
+                <button class="v-btn" style="background:#c084fc;" onclick="restartVersus()">BAŞTAN BAŞLA</button>
+                <button class="v-btn" style="background:#475569;" onclick="goToMenu()">LOBİYE DÖN</button>
+            </div>
+        </div>
+
+        <div id="versus-hud">
+            <span id="hud-p1">P1 (CAN: 3): 0</span>
+            <span id="hud-p2">P2 (CAN: 3): 0</span>
+        </div>
+
+        <!-- Giriş Ekranı -->
+        <div id="splash-screen" class="screen">
+            <div class="splash-logo">ZOMBİDEN KAÇIŞ!</div>
+            <div class="splash-tagline">Custom 5-Type Zombies Edition</div>
+            <div style="font-size: 10px; color: #94a3b8; margin-bottom: 25px; text-align: center; max-width: 260px;">
+                Kırmızı hızlı, patlayan, donduran ve yön değiştiren özel zombiler aktif!
+            </div>
+            <button class="btn" id="enter-lobby-btn" onclick="enterLobby()">OYUNA GİRİŞ YAP</button>
+        </div>
+
+        <!-- Ana Menü -->
+        <div id="menu-screen" class="screen">
+            <div class="logo-title">ZOMBİDEN KAÇIŞ!</div>
+            <div class="logo-subtitle">Mega Lobi</div>
+
+            <div class="lobby-card">
+                <div style="display: flex; justify-content: space-between; color: #fff; font-size: 11px; font-weight: bold;">
+                    <span>SEVİYE <span id="lobby-level">1</span></span>
+                    <span style="color: #facc15;">⭐ <span id="lobby-stars">100</span></span>
+                </div>
+                <div class="xp-bar-container"><div id="lobby-xp-fill" class="xp-bar-fill"></div></div>
+                <div style="display: flex; justify-content: space-between; font-size: 8px; color: #94a3b8; margin-top: 4px;">
+                    <span>REKOR: <span id="high-score" style="color:#facc15; font-weight:bold;">0</span></span>
+                    <span>TOPLAM SKOR: <span id="total-score-stat">0</span></span>
+                </div>
+            </div>
+
+            <button class="btn" id="start-single-btn">TEK KİŞİLİK (5 ÖZEL ZOMBİ MODU)</button>
+            <button class="btn" style="background: linear-gradient(135deg, #c084fc 0%, #7e22ce 100%);" id="start-versus-btn">2 KİŞİLİK DÜELLO 🔥</button>
+            <button class="btn btn-secondary" id="open-shop-btn">MARKET</button>
+            <button class="btn btn-secondary" id="open-inv-btn">ENVANTER (KARAKTERLER)</button>
+            <button class="btn btn-secondary" id="open-map-btn">HARİTALAR (10 DÜNYA)</button>
+            <button class="btn btn-secondary" id="open-ach-btn" style="background: rgba(250, 204, 21, 0.15); border-color:#facc15; color:#facc15;">BAŞARILAR 🏆</button>
+            <button class="btn btn-secondary" id="toggle-sound-btn" style="background: rgba(239, 68, 68, 0.15); border-color:#ef4444;">SES: AÇIK 🔊</button>
+        </div>
+
+        <!-- Durdurma (Pause) Menüsü -->
+        <div id="pause-screen" class="screen">
+            <h1 style="color: #ef4444; font-size: 22px; margin-bottom: 12px;">OYUN DURDURULDU</h1>
+            <button class="btn" id="resume-btn">DEVAM ET</button>
+            <button class="btn btn-secondary" onclick="goToMenu()">LOBİYE DÖN</button>
+        </div>
+
+        <!-- Başarılar Ekranı -->
+        <div id="achievements-screen" class="screen">
+            <h1 style="font-size: 20px; margin-bottom: 8px;">BAŞARILAR</h1>
+            <div class="shop-container" id="achievements-grid" style="grid-template-columns: 1fr;"></div>
+            <button class="btn btn-secondary" id="close-ach-btn">LOBİ</button>
+        </div>
+
+        <!-- Market Ekranı -->
+        <div id="shop-screen" class="screen">
+            <h1 style="font-size: 20px; margin-bottom: 4px;">MARKET</h1>
+            <p style="font-size:11px; margin-bottom:8px;">Yıldızın: <span id="shop-stars" style="color:#facc15;">100</span> ⭐</p>
+            <div class="shop-container" id="shop-items-grid"></div>
+            <button class="btn btn-secondary" id="close-shop-btn">LOBİ</button>
+        </div>
+
+        <!-- Bölünmüş Envanter Ekranı -->
+        <div id="inventory-screen" class="screen">
+            <h1 style="font-size: 18px; margin-bottom: 4px;">ENVANTER</h1>
+            <p style="font-size:9px; color:#94a3b8; margin-bottom:8px;">P1 ve P2 İçin Bağımsız Kostüm Seçimi</p>
+            
+            <div class="split-inventory-container">
+                <div class="inv-column">
+                    <div style="color:#38bdf8; font-weight:bold; font-size:10px; text-align:center;">🔵 P1 (Tek Kişilik)</div>
+                    <div class="inv-grid" id="p1-inv-grid"></div>
+                </div>
+                <div class="inv-column">
+                    <div style="color:#c084fc; font-weight:bold; font-size:10px; text-align:center;">🟣 P2 (2 Kişilik)</div>
+                    <div class="inv-grid" id="p2-inv-grid"></div>
+                </div>
+            </div>
+
+            <button class="btn btn-secondary" id="close-inv-btn">LOBİ</button>
+        </div>
+
+        <!-- Harita Ekranı -->
+        <div id="map-screen" class="screen">
+            <h1 style="font-size: 20px; margin-bottom: 4px;">HARİTALAR</h1>
+            <p style="font-size:10px; margin-bottom:8px;">5 Özel Zombi Sınıfına Sahip Dünyalar</p>
+            <div class="shop-container" id="map-items-grid" style="grid-template-columns: 1fr;"></div>
+            <button class="btn btn-secondary" id="close-map-btn">LOBİ</button>
+        </div>
+
+        <!-- Game Over Ekranı -->
+        <div id="game-over-screen" class="screen">
+            <h1 style="color: #ef4444; font-size: 22px;">ZOMBİLER TARAFINDAN YENDİN</h1>
+            <p id="final-score" style="font-size:12px; margin: 8px 0;">Skorun: 0</p>
+            <p id="game-over-highscore" style="font-size:10px; color:#facc15; margin-bottom:10px;">En Yüksek Skor: 0</p>
+            <button class="btn" onclick="document.getElementById('start-single-btn').click(); gameOverScreen.style.display='none';">TEKRAR DENE</button>
+            <button class="btn btn-secondary" onclick="goToMenu()">LOBİYE DÖN</button>
+        </div>
+
+        <div id="ui-layer">
+            <div class="header-panel" id="single-hud" style="display:none;">
+                <div class="stat-box">SKOR: <span id="score">0</span> | <span id="combo-hud" style="color:#facc15;">KOMBO: x1</span></div>
+                <div class="stat-box" style="color: #facc15;">⭐ CAN: <span id="player-hp">3</span></div>
+                <div class="stat-box" id="powerup-hud" style="color: #4ade80; display:none;">GÜÇ: YOK</div>
+                <button class="btn btn-secondary" id="pause-btn" style="padding: 2px 8px; font-size: 10px; margin:0; width:auto;">⏸️ DURDUR</button>
+            </div>
+            <div id="world-banner" style="display:none; position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 900; letter-spacing: 2px; color: #ef4444; background: rgba(15, 23, 42, 0.85); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(239, 68, 68, 0.3);">1. Neon Şehir</div>
+        </div>
+    </div>
+
+    <script>
+        let soundEnabled = true;
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        document.getElementById('toggle-sound-btn').onclick = () => {
+            soundEnabled = !soundEnabled;
+            document.getElementById('toggle-sound-btn').innerText = soundEnabled ? "SES: AÇIK 🔊" : "SES: KAPALI 🔇";
+        };
+
+        function playSound(type) {
+            if (!soundEnabled || !audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gainNode = audioCtx.createGain();
+                osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+                let now = audioCtx.currentTime;
+                if (type === 'star') {
+                    osc.frequency.setValueAtTime(587.33, now); osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                    gainNode.gain.setValueAtTime(0.2, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'powerup') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
+                    gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if (type === 'hit') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+                    gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                }
+            } catch(e){}
+        }
+
+        const container = document.getElementById('game-container');
+        const splashScreen = document.getElementById('splash-screen');
+        const menuScreen = document.getElementById('menu-screen');
+        const shopScreen = document.getElementById('shop-screen');
+        const inventoryScreen = document.getElementById('inventory-screen');
+        const mapScreen = document.getElementById('map-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const achievementsScreen = document.getElementById('achievements-screen');
+        const overlayP1 = document.getElementById('overlay-p1');
+        const overlayP2 = document.getElementById('overlay-p2');
+
+        const singleCanvasContainer = document.getElementById('single-canvas-container');
+        const half1 = document.getElementById('half-1');
+        const half2 = document.getElementById('half-2');
+        const singleHud = document.getElementById('single-hud');
+        const worldBanner = document.getElementById('world-banner');
+        const versusHud = document.getElementById('versus-hud');
+        const powerupHud = document.getElementById('powerup-hud');
+
+        const singleCanvas = document.getElementById('singleCanvas');
+        const ctxSingle = singleCanvas.getContext('2d');
+        const canvas1 = document.getElementById('canvas1');
+        const ctx1 = canvas1.getContext('2d');
+        const canvas2 = document.getElementById('canvas2');
+        const ctx2 = canvas2.getContext('2d');
+
+        let totalStars = parseInt(localStorage.getItem('arcade_stars') || '100');
+        let playerLevel = parseInt(localStorage.getItem('arcade_level') || '1');
+        let playerXp = parseInt(localStorage.getItem('arcade_xp') || '0');
+        let highScore = parseInt(localStorage.getItem('arcade_highscore') || '0');
+        let totalScoreAllTime = parseInt(localStorage.getItem('arcade_total_score') || '0');
+        
+        document.getElementById('high-score').innerText = highScore;
+        document.getElementById('total-score-stat').innerText = totalScoreAllTime;
+
+        const marketItems = [
+            { id: 'neon', name: 'Neon Mavi', type: 'skin', icon: '🔵', price: 0 },
+            { id: 'pumpkin', name: 'Balkabağı', type: 'skin', icon: '🎃', price: 40 },
+            { id: 'santa', name: 'Noel Baba', type: 'skin', icon: '🎅', price: 80 },
+            { id: 'robot', name: 'Siber Robot', type: 'skin', icon: '🤖', price: 150 },
+            { id: 'messi', name: 'Messi GOAT 🐐', type: 'skin', icon: '🇦🇷', price: 250 },
+            { id: 'ronaldo', name: 'Ronaldo CR7 👑', type: 'skin', icon: '🇵🇹', price: 300 },
+            { id: 'ninja', name: 'Cyber Ninja 🥷', type: 'skin', icon: '🥷', price: 400 },
+            { id: 'samurai', name: 'Samuray ⚔️', type: 'skin', icon: '⚔️', price: 500 },
+            { id: 'king', name: 'Altın Kral 👑', type: 'skin', icon: '🏆', price: 700 },
+            { id: 'ghost', name: 'Hayalet Sürücü 💀', type: 'skin', icon: '🔥', price: 900 },
+            { id: 'alien', name: 'Uzaylı Komutan 👽', type: 'skin', icon: '👽', price: 1200 },
+            { id: 'titan', name: 'Titan Şövalye 🛡️', type: 'skin', icon: '🛡️', price: 1500 },
+            { id: 'firetrail', name: 'Ateş Tılsımı', type: 'trail', icon: '🔥', price: 60 },
+            { id: 'rainbowtrail', name: 'Gökkuşağı', type: 'trail', icon: '🌈', price: 120 }
+        ];
+
+        let unlockedItems = JSON.parse(localStorage.getItem('arcade_unlocked') || '["neon","firetrail"]');
+        let p1Skin = localStorage.getItem('p1_skin') || 'neon';
+        let p1Trail = localStorage.getItem('p1_trail') || 'firetrail';
+        let p2Skin = localStorage.getItem('p2_skin') || 'pumpkin';
+        let p2Trail = localStorage.getItem('p2_trail') || 'rainbowtrail';
+
+        const maps = [
+            { id: 0, name: "1. Neon Şehir", cost: 0, speed: 0.85, theme: 'neon', zombieName: 'Siber Zombi' },
+            { id: 1, name: "2. Çöl Fırtınası", cost: 50, speed: 0.9, theme: 'desert', zombieName: 'Akrep Zombi' },
+            { id: 2, name: "3. Karlı Zirve", cost: 100, speed: 0.95, theme: 'snow', zombieName: 'Buz Dedesi (Donduran)' },
+            { id: 3, name: "4. Volkanik Lav", cost: 180, speed: 1.0, theme: 'lava', zombieName: 'Kamikaze Lav Golemi' },
+            { id: 4, name: "5. Siber Uzay", cost: 250, speed: 1.05, theme: 'space', zombieName: 'Plazma Hayalet' },
+            { id: 5, name: "6. Zehirli Orman", cost: 350, speed: 1.1, theme: 'forest', zombieName: 'Sarmaşık Zombi' },
+            { id: 6, name: "7. Uzay Üssü", cost: 500, speed: 1.15, theme: 'base', zombieName: 'Mekanik Cyborg' },
+            { id: 7, name: "8. Şeker Diyarı", cost: 700, speed: 1.2, theme: 'candy', zombieName: 'Jelibon Mutant' },
+            { id: 8, name: "9. Gecekondu", cost: 1000, speed: 1.25, theme: 'slum', zombieName: 'Paslı Sokak Zombisi' },
+            { id: 9, name: "10. Sonsuz Galaksi", cost: 1500, speed: 1.3, theme: 'galaxy', zombieName: 'Kozmik Varlık' }
+        ];
+
+        let unlockedMaps = JSON.parse(localStorage.getItem('arcade_unlocked_maps') || '[0]');
+        let currentMapId = 0;
+
+        const achievementsList = [
+            { id: 'zombie_hunter', name: '🧟 Zombi Avcısı', desc: 'Tek oyunda 50 skor yap', check: () => score >= 50 },
+            { id: 'star_collector', name: '⭐ Yıldız Koleksiyoncusu', desc: 'Toplam 100 yıldız topla', check: () => totalStars >= 100 },
+            { id: 'high_roller', name: '🔥 Rekortmen', desc: '1000 ve üzeri skor yap', check: () => highScore >= 1000 },
+            { id: 'cr7_fan', name: '👑 CR7 Efsanesi', desc: 'Ronaldo kostümünü kilitle ve giy', check: () => unlockedItems.includes('ronaldo') },
+            { id: 'space_explorer', name: '🌌 Uzay Gezgini', desc: '5. Haritanın kilidini aç', check: () => unlockedMaps.includes(4) },
+            { id: 'level_master', name: '⚡ Kıdemli Oyuncu', desc: 'Seviye 5 veya üzerine ulaş', check: () => playerLevel >= 5 }
+        ];
+
+        function enterLobby() {
+            initAudio();
+            splashScreen.style.display = 'none';
+            menuScreen.style.display = 'flex';
+        }
+        document.getElementById('enter-lobby-btn').onclick = enterLobby;
+
+        function updateLobbyUI() {
+            document.getElementById('lobby-stars').innerText = totalStars;
+            document.getElementById('shop-stars').innerText = totalStars;
+            document.getElementById('lobby-level').innerText = playerLevel;
+            document.getElementById('high-score').innerText = highScore;
+            document.getElementById('total-score-stat').innerText = totalScoreAllTime;
+            let xpNeeded = playerLevel * 20;
+            let xpPercent = Math.min(100, (playerXp / xpNeeded) * 100);
+            document.getElementById('lobby-xp-fill').style.width = xpPercent + '%';
+            localStorage.setItem('arcade_stars', totalStars);
+            localStorage.setItem('arcade_level', playerLevel);
+            localStorage.setItem('arcade_xp', playerXp);
+            localStorage.setItem('arcade_highscore', highScore);
+            localStorage.setItem('arcade_total_score', totalScoreAllTime);
+        }
+        updateLobbyUI();
+
+        function addXp(amount) {
+            playerXp += amount;
+            let xpNeeded = playerLevel * 20;
+            if (playerXp >= xpNeeded) {
+                playerXp -= xpNeeded;
+                playerLevel++;
+                alert(`Tebrikler! Seviye Atladın: Seviye ${playerLevel} Oldun!`);
+            }
+            updateLobbyUI();
+        }
+
+        function renderShop() {
+            let grid = document.getElementById('shop-items-grid');
+            grid.innerHTML = '';
+            marketItems.forEach(item => {
+                let owned = unlockedItems.includes(item.id);
+                grid.innerHTML += `
+                    <div class="shop-card" onclick="buyItem('${item.id}',${item.price})">
+                        <span style="font-size:20px;">${item.
